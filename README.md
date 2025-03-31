@@ -6,14 +6,6 @@
 
 A curated collection of effective AI prompts designed to enhance daily tasks and workflows. This repository serves as both a personal library and a practical guide for leveraging AI tools more effectively.
 
-## 📋 Table of Contents
-
-- [Introduction](#introduction)
-- [Best Practices for Prompt Engineering](#best-practices-for-prompt-engineering)
-- [Organization & Maintenance](#organization--maintenance)
-- [Contribution Guidelines](#contribution-guidelines)
-- [Version Control Strategy](#version-control-strategy)
-
 ## 📝 Introduction
 
 This repository contains a collection of AI prompts I've crafted and refined to streamline various aspects of my work and personal projects. Each prompt is designed with specific use cases in mind, and has been tested across multiple AI models for consistency and effectiveness.
