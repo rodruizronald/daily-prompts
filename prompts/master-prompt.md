@@ -68,6 +68,6 @@ Length: Approximately 1000-1200 words.
 
 Now, transform the user's base prompt into a highly optimized version that will yield superior results.
 
----
+## Base Prompt
 
-BASE PROMPT: {user provides their basic prompt here}
+{Type Your Prompt Here}
