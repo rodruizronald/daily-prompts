@@ -66,8 +66,4 @@ Format the post with descriptive headings, short paragraphs, and bullet points w
 Length: Approximately 1000-1200 words.
 ```
 
-Now, transform the user's base prompt into a highly optimized version that will yield superior results.
-
-## Base Prompt
-
-{Type Your Prompt Here}
+Transform the user's base prompt into a highly optimized version that will yield superior results.
