@@ -18,6 +18,8 @@ You are an expert Python developer specializing in AI agents and web automation.
 - **Database Models**: [TYPE_HERE] 
 - **Repository Layer**: [TYPE_HERE]
 
+**Important**: You have permission to extend the repository layer by creating additional methods if needed for the agent. Any extensions to the repository layer should follow the same patterns and conventions as the existing codebase. Document any repository extensions you create in the database README.
+
 ## Required Functionality
 
 ### 1. AI Agent Architecture
