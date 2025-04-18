@@ -113,3 +113,113 @@ The agent must implement the following workflow:
 - Type annotations are used consistently throughout the codebase
 - Package structure follows logical organization based on features rather than technical layers
 - The solution works on a local development environment
+
+## Business Requirements
+
+### Technologies & Job Technologies
+
+This is how the technologies and job technologies table work.
+
+1. First, the job gets saved in the `jobs` table with basic info:
+    - Job title: "Golang Developer"
+    - Company: Microsoft
+    - Description: "Looking for a Golang developer with Docker and AWS experience..."
+2. From this job description, we find these technologies:
+    - Golang
+    - Docker
+    - AWS
+3. To save them, we need to find out the ID of the technology in the `technologies` table:
+    - The `technologies` table is like a dictionary of all tech skills
+    - It has entries like "Golang" (ID: 25), "Docker" (ID: 42), and "AWS" (ID: 17)
+4. Now, when saving in the `job_technologies` table, we will do:
+    - It adds a row connecting Job ID 123 with Technology ID 25 (Golang)
+    - It adds another row connecting Job ID 123 with Technology ID 42 (Docker)
+    - It adds a third row connecting Job ID 123 with Technology ID 17 (AWS)
+    - It marks Golang as the primary technology (setting is_primary = true)
+
+So now this job is connected to three technologies. It's like saying "this job requires these three skills."
+
+Let's say you want to find Golang jobs that also require Docker:
+
+1. Without these special tables:
+    - You'd have to search for "Golang" AND "Docker" in the text
+    - This might miss jobs that use terms like "Go" instead of "Golang"
+    - It might find false matches where "Docker" appears but isn't required
+2. With these tables, the search works like this:
+    - Find the IDs for "Golang" and "Docker" in the `technologies` table
+    - Then use those IDs to find jobs in the `job_technologies` table that have BOTH technologies
+    - This gives you a perfect match of jobs requiring both skills
+
+For example, this SQL query would find all Golang + Docker jobs:
+
+```sql
+SELECT j.* FROM jobs j
+JOIN job_technologies jt1 ON j.id = jt1.job_id
+JOIN job_technologies jt2 ON j.id = jt2.job_id
+JOIN technologies t1 ON jt1.technology_id = t1.id
+JOIN technologies t2 ON jt2.technology_id = t2.id
+WHERE t1.name = 'Golang' AND t2.name = 'Docker' AND j.is_active = true;
+```
+
+The relationship is like a bridge connecting jobs to the skills they require. This makes searching much more accurate and allows for cool filters like:
+
+- "Show me all React jobs"
+- "Show me jobs that use both PostgreSQL and MongoDB"
+- "Show me jobs where Go is the main skill required"
+
+This is much better than just searching through text!
+
+Let me explain the `category` and `parent_id` fields in the `technologies` table in simple terms:
+
+### The `category` Field
+
+The `category` field helps organize technologies into groups or types. Think of it like shelves in a library.
+
+For example:
+
+- "Programming Languages" would include Python, JavaScript, Go, Java
+- "Databases" would include MongoDB, PostgreSQL, MySQL
+- "Frontend Frameworks" would include React, Vue, Angular
+- "Cloud Services" would include AWS, Azure, Google Cloud
+
+This helps when:
+
+1. You want to display technologies grouped by category in your website
+2. A user wants to filter jobs by a whole category (e.g., "Show me all database jobs")
+3. You want to generate reports like "Most in-demand programming languages in Costa Rica"
+
+### The `parent_id` Field
+
+The `parent_id` field creates a family tree relationship between technologies. Some technologies are "children" of other technologies.
+
+For example:
+
+- React is a child of JavaScript
+- Django is a child of Python
+- AWS Lambda is a child of AWS
+
+This is useful when:
+
+1. A user searches for "JavaScript jobs" - you might want to also include React jobs
+2. You want to show related technologies on a job posting
+3. You're building recommendation features ("If you know Python, you might also look at Django jobs")
+
+## Real Example
+
+Let's say you have these entries in your `technologies` table:
+
+| id | name | category | parent_id |
+|----|------|----------|-----------|
+| 1 | JavaScript | Programming Language | NULL |
+| 2 | React | Frontend Framework | 1 |
+| 3 | Vue | Frontend Framework | 1 |
+| 4 | Python | Programming Language | NULL |
+| 5 | Django | Web Framework | 4 |
+
+Here:
+
+- JavaScript and Python are top-level technologies (no parent)
+- React and Vue are in the "Frontend Framework" category and are children of JavaScript
+- Django is in the "Web Framework" category and is a child of Python
+
+This structure helps organize the technologies in a way that makes searching more intelligent and your interface more user-friendly.
