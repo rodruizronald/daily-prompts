@@ -30,6 +30,32 @@ Create comprehensive unit tests for the provided Go code following these require
    - Test fixtures or helpers for test data generation
    - Performance benchmarks for critical functions (optional)
 
+## Test Structure Requirements
+
+### Mandatory Test Patterns
+
+1. **Use t.Parallel()** for concurrent test execution:
+   - Call `t.Parallel()` at the beginning of each test function
+   - Call `t.Parallel()` at the beginning of each subtest within `t.Run()`
+
+2. **Implement checkResults function** for each test case:
+   - Each test case in the table must have a `checkResults func(t *testing.T, ...)` field
+   - The `checkResults` function must call `t.Helper()` as its first statement
+   - This function should contain ALL assertions for that specific test case
+   - Parameters should include the actual results and error from the function under test
+
+3. **Keep t.Run() blocks clean**:
+   - The `t.Run()` block should only contain:
+     - `t.Parallel()` call
+     - Test initialization/setup (e.g., creating mocks)
+     - Calling the function under test
+     - Calling `checkResults()` with the results
+     - Verifying mock expectations (if applicable)
+
+4. **Mock setup functions**:
+   - If using `mockSetup` functions, they must also call `t.Helper()` as their first statement
+   - Keep mock setup logic separate from result checking
+
 ## Clarification Requirements
 NEVER make assumptions about the code under test. Before implementing any tests:
 
@@ -73,11 +99,11 @@ DO NOT proceed with test implementation until ALL ambiguities are resolved.
 - Implement proper resource cleanup in tests that create files, connections, etc.
 - Always specify field names in table-driven test cases for improved readability and maintainability
 - For any HTTP handlers, use httptest package
-- For database interactions, consider using sqlmock or in-memory alternatives
+- For database interactions, use pgxmock for PostgreSQL mocking
 
 ## Examples
 
-### Basic Function Testing
+### Basic Function Testing with checkResults Pattern
 For a function like:
 ```go
 // CalculateDiscount determines the discount amount based on purchase total
@@ -99,49 +125,100 @@ func CalculateDiscount(total float64) (float64, error) {
 Provide test implementation like:
 ```go
 func TestCalculateDiscount(t *testing.T) {
+    t.Parallel()
+    
     tests := []struct {
-        name           string
-        total          float64
-        wantDiscount   float64
-        wantErr        bool
-        errorMsg       string
+        name         string
+        total        float64
+        checkResults func(t *testing.T, discount float64, err error)
     }{
-        {name: "negative amount", total: -10.0, wantDiscount: 0, wantErr: true, errorMsg: "total cannot be negative"},
-        {name: "zero amount", total: 0, wantDiscount: 0, wantErr: false, errorMsg: ""},
-        {name: "small purchase", total: 50.0, wantDiscount: 0, wantErr: false, errorMsg: ""},
-        {name: "medium purchase", total: 200.0, wantDiscount: 20.0, wantErr: false, errorMsg: ""},
-        {name: "large purchase", total: 1000.0, wantDiscount: 200.0, wantErr: false, errorMsg: ""},
-        {name: "boundary - no discount", total: 99.99, wantDiscount: 0, wantErr: false, errorMsg: ""},
-        {name: "boundary - small discount", total: 100.0, wantDiscount: 10.0, wantErr: false, errorMsg: ""},
-        {name: "boundary - large discount", total: 500.0, wantDiscount: 100.0, wantErr: false, errorMsg: ""},
+        {
+            name:  "negative amount",
+            total: -10.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.Error(t, err)
+                assert.EqualError(t, err, "total cannot be negative")
+                assert.Equal(t, 0.0, discount)
+            },
+        },
+        {
+            name:  "zero amount",
+            total: 0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.Equal(t, 0.0, discount)
+            },
+        },
+        {
+            name:  "small purchase",
+            total: 50.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.Equal(t, 0.0, discount)
+            },
+        },
+        {
+            name:  "medium purchase",
+            total: 200.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.InDelta(t, 20.0, discount, 0.0001)
+            },
+        },
+        {
+            name:  "large purchase",
+            total: 1000.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.InDelta(t, 200.0, discount, 0.0001)
+            },
+        },
+        {
+            name:  "boundary - no discount",
+            total: 99.99,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.Equal(t, 0.0, discount)
+            },
+        },
+        {
+            name:  "boundary - small discount",
+            total: 100.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.InDelta(t, 10.0, discount, 0.0001)
+            },
+        },
+        {
+            name:  "boundary - large discount",
+            total: 500.0,
+            checkResults: func(t *testing.T, discount float64, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.InDelta(t, 100.0, discount, 0.0001)
+            },
+        },
     }
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            got, err := CalculateDiscount(tt.total)
+            t.Parallel()
             
-            // Check error status
-            if (err != nil) != tt.wantErr {
-                t.Errorf("CalculateDiscount() error = %v, wantErr %v", err, tt.wantErr)
-                return
-            }
-            
-            // Check error message if expected
-            if tt.wantErr && err.Error() != tt.errorMsg {
-                t.Errorf("CalculateDiscount() error message = %v, want %v", err.Error(), tt.errorMsg)
-                return
-            }
-            
-            // Check result with small delta to handle floating point precision
-            if math.Abs(got - tt.wantDiscount) > 0.0001 {
-                t.Errorf("CalculateDiscount() = %v, want %v", got, tt.wantDiscount)
-            }
+            discount, err := CalculateDiscount(tt.total)
+            tt.checkResults(t, discount, err)
         })
     }
 }
 ```
 
-### Mock Example
+### Mock Example with checkResults Pattern
 ```go
 // UserService interface
 type UserService interface {
@@ -189,54 +266,61 @@ func (m *MockUserService) GetUserByID(id int) (*User, error) {
 }
 
 func TestProcessor_ProcessUser(t *testing.T) {
+    t.Parallel()
+    
     tests := []struct {
-        name       string
-        userID     int
-        setupMock  func(*MockUserService)
-        want       string
-        wantErr    bool
+        name         string
+        userID       int
+        mockSetup    func(t *testing.T, m *MockUserService)
+        checkResults func(t *testing.T, result string, err error)
     }{
         {
-            name:       "successful processing",
-            userID:     1,
-            setupMock:  func(m *MockUserService) {
+            name:   "successful processing",
+            userID: 1,
+            mockSetup: func(t *testing.T, m *MockUserService) {
+                t.Helper()
                 m.On("GetUserByID", 1).Return(&User{ID: 1, Name: "John"}, nil)
             },
-            want:       "Processed user: John",
-            wantErr:    false,
+            checkResults: func(t *testing.T, result string, err error) {
+                t.Helper()
+                require.NoError(t, err)
+                assert.Equal(t, "Processed user: John", result)
+            },
         },
         {
-            name:       "user not found",
-            userID:     2,
-            setupMock:  func(m *MockUserService) {
+            name:   "user not found",
+            userID: 2,
+            mockSetup: func(t *testing.T, m *MockUserService) {
+                t.Helper()
                 m.On("GetUserByID", 2).Return(nil, errors.New("user not found"))
             },
-            want:       "",
-            wantErr:    true,
+            checkResults: func(t *testing.T, result string, err error) {
+                t.Helper()
+                require.Error(t, err)
+                assert.EqualError(t, err, "user not found")
+                assert.Empty(t, result)
+            },
         },
     }
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // Create mock
+            t.Parallel()
+            
+            // Create and setup mock
             mockService := new(MockUserService)
-            tt.setupMock(mockService)
+            tt.mockSetup(t, mockService)
             
             // Create processor with mock
             p := &Processor{userService: mockService}
             
-            // Call the method
-            got, err := p.ProcessUser(tt.userID)
+            // Call the method under test
+            result, err := p.ProcessUser(tt.userID)
             
-            // Assert results
-            if tt.wantErr {
-                assert.Error(t, err)
-            } else {
-                require.NoError(t, err)
-                assert.Equal(t, tt.want, got)
-            }
+            // Check results
+            tt.checkResults(t, result, err)
             
-            // Verify all expected calls were made
+            // Verify mock expectations
             mockService.AssertExpectations(t)
         })
     }
